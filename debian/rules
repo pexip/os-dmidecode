@@ -1,0 +1,30 @@
+#!/usr/bin/make -f
+
+# Flags fetched from the upstream Makefile.
+CFLAGS +=	-W -Wall -pedantic -Wshadow -Wstrict-prototypes -Wpointer-arith \
+		-Wcast-qual -Wcast-align -Wwrite-strings -Wmissing-prototypes -Winline -Wundef
+
+# Use -Os to make the udeb as small as possible.
+CFLAGS +=	-Os
+
+# Dropped -ansi as it break building on ia64
+CFLAGS +=	-ansi
+
+%:
+	dh ${@}
+
+override_dh_auto_build:
+	dh_auto_build -- CFLAGS="$(CFLAGS)"
+
+override_dh_auto_install:
+	dh_auto_install -- prefix=/usr
+
+	# remove useless files
+	rm -f debian/tmp/usr/share/doc/dmidecode/CHANGELOG
+	rm -f debian/tmp/usr/share/doc/dmidecode/README
+
+override_dh_builddeb:
+	dh_builddeb -- -Zgzip -z9
+
+override_dh_install:
+	dh_install --fail-missing
