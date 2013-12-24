@@ -1,3 +1,9 @@
+dmidecode (2.11-4pexip1) pexip; urgency=low
+
+  * Prepare Pexip packaging
+
+ -- John-Mark Bell <jmb@pexip.com>  Tue, 24 Dec 2013 14:47:24 +0000
+
 dmidecode (2.11-4) unstable; urgency=low
 
   * Using compression level 9 also for binary packages.

@@ -1,10 +1,12 @@
 Source: dmidecode
 Section: utils
 Priority: optional
-Maintainer: Daniel Baumann <daniel.baumann@progress-technologies.net>
+Maintainer: Pexip AS <packaging@pexip.com>
+XSBC-Pexip-Original-Maintainer: Daniel Baumann <daniel.baumann@progress-technologies.net>
 Build-Depends: debhelper (>= 8)
 Standards-Version: 3.9.2
 Homepage: http://dmidecode.nongnu.org/
+XS-Pexip-Upstream: http://archive.ubuntu.com/ubuntu/ precise
 
 Package: dmidecode
 Priority: important
