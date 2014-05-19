@@ -25,7 +25,7 @@
  *   are deemed to be part of the source code.
  *
  * Unless specified otherwise, all references are aimed at the "System
- * Management BIOS Reference Specification, Version 2.7.0" document,
+ * Management BIOS Reference Specification, Version 2.8.0" document,
  * available from http://www.dmtf.org/standards/smbios.
  *
  * Note to contributors:
@@ -197,7 +197,7 @@ static void dmi_dump(const struct dmi_header *h, const char *prefix)
 					printf("%s\t", prefix);
 					for (j = 0; j < 16 && j < l - (row << 4); j++)
 						printf("%s%02X", j ? " " : "",
-						       s[(row << 4) + j]);
+						       (unsigned char)s[(row << 4) + j]);
 					printf("\n");
 				}
 				/* String isn't filtered yet so do it now */
@@ -532,6 +532,8 @@ static const char *dmi_chassis_type(u8 code)
 		"Blade Enclosing" /* 0x1D */
 	};
 
+	code &= 0x7F; /* bits 6:0 are chassis type, 7th bit is the lock bit */
+
 	if (code >= 0x01 && code <= 0x1D)
 		return type[code - 0x01];
 	return out_of_spec;
@@ -707,6 +709,9 @@ static const char *dmi_processor_family(const struct dmi_header *h, u16 ver)
 		{ 0x3A, "Athlon II Dual-Core M" },
 		{ 0x3B, "Opteron 6100" },
 		{ 0x3C, "Opteron 4100" },
+		{ 0x3D, "Opteron 6200" },
+		{ 0x3E, "Opteron 4200" },
+		{ 0x3F, "FX" },
 
 		{ 0x40, "MIPS" },
 		{ 0x41, "MIPS R4000" },
@@ -714,6 +719,16 @@ static const char *dmi_processor_family(const struct dmi_header *h, u16 ver)
 		{ 0x43, "MIPS R4400" },
 		{ 0x44, "MIPS R4600" },
 		{ 0x45, "MIPS R10000" },
+		{ 0x46, "C-Series" },
+		{ 0x47, "E-Series" },
+		{ 0x48, "A-Series" },
+		{ 0x49, "G-Series" },
+		{ 0x4A, "Z-Series" },
+		{ 0x4B, "R-Series" },
+		{ 0x4C, "Opteron 4300" },
+		{ 0x4D, "Opteron 6300" },
+		{ 0x4E, "Opteron 3300" },
+		{ 0x4F, "FirePro" },
 
 		{ 0x50, "SPARC" },
 		{ 0x51, "SuperSPARC" },
@@ -826,6 +841,8 @@ static const char *dmi_processor_family(const struct dmi_header *h, u16 ver)
 		{ 0xDF, "Multi-Core Xeon 7xxx" },
 		{ 0xE0, "Multi-Core Xeon 3400" },
 
+		{ 0xE4, "Opteron 3000" },
+		{ 0xE5, "Sempron II" },
 		{ 0xE6, "Embedded Opteron Quad-Core" },
 		{ 0xE7, "Phenom Triple-Core" },
 		{ 0xE8, "Turion Ultra Dual-Core Mobile" },
@@ -997,7 +1014,8 @@ static void dmi_processor_id(u8 type, const u8 *p, const char *version, const ch
 		sig = 1;
 	else if ((type >= 0x18 && type <= 0x1D) /* AMD */
 	      || type == 0x1F /* AMD */
-	      || (type >= 0x38 && type <= 0x3C) /* AMD */
+	      || (type >= 0x38 && type <= 0x3E) /* AMD */
+	      || (type >= 0x46 && type <= 0x49) /* AMD */
 	      || (type >= 0x83 && type <= 0x8F) /* AMD */
 	      || (type >= 0xB6 && type <= 0xB7) /* AMD */
 	      || (type >= 0xE6 && type <= 0xEF)) /* AMD */
@@ -1143,10 +1161,22 @@ static const char *dmi_processor_upgrade(u8 code)
 		"Socket LGA1156",
 		"Socket LGA1567",
 		"Socket PGA988A",
-		"Socket BGA1288" /* 0x20 */
+		"Socket BGA1288",
+		"Socket rPGA988B",
+		"Socket BGA1023",
+		"Socket BGA1224",
+		"Socket BGA1155",
+		"Socket LGA1356",
+		"Socket LGA2011",
+		"Socket FS1",
+		"Socket FS2",
+		"Socket FM1",
+		"Socket FM2",
+		"Socket LGA2011-3",
+		"Socket LGA1356-3" /* 0x2C */
 	};
 
-	if (code >= 0x01 && code <= 0x20)
+	if (code >= 0x01 && code <= 0x2A)
 		return upgrade[code - 0x01];
 	return out_of_spec;
 }
@@ -1493,10 +1523,11 @@ static const char *dmi_cache_associativity(u8 code)
 		"24-way Set-associative",
 		"32-way Set-associative",
 		"48-way Set-associative",
-		"64-way Set-associative" /* 0x0D */
+		"64-way Set-associative",
+		"20-way Set-associative" /* 0x0E */
 	};
 
-	if (code >= 0x01 && code <= 0x0D)
+	if (code >= 0x01 && code <= 0x0E)
 		return type[code - 0x01];
 	return out_of_spec;
 }
@@ -1660,12 +1691,18 @@ static const char *dmi_slot_type(u8 code)
 		"PCI Express 2 x2",
 		"PCI Express 2 x4",
 		"PCI Express 2 x8",
-		"PCI Express 2 x16", /* 0xB0 */
+		"PCI Express 2 x16",
+		"PCI Express 3",
+		"PCI Express 3 x1",
+		"PCI Express 3 x2",
+		"PCI Express 3 x4",
+		"PCI Express 3 x8",
+		"PCI Express 3 x16" /* 0xB6 */
 	};
 
 	if (code >= 0x01 && code <= 0x13)
 		return type[code - 0x01];
-	if (code >= 0xA0 && code <= 0xB0)
+	if (code >= 0xA0 && code <= 0xB6)
 		return type_0xA0[code - 0xA0];
 	return out_of_spec;
 }
@@ -2100,7 +2137,7 @@ static const char *dmi_memory_array_location(u8 code)
 
 	if (code >= 0x01 && code <= 0x0A)
 		return location[code - 0x01];
-	if (code >= 0xA0 && code <= 0xA4)
+	if (code >= 0xA0 && code <= 0xA3)
 		return location_0xA0[code - 0xA0];
 	return out_of_spec;
 }
@@ -2194,6 +2231,14 @@ static void dmi_memory_device_extended_size(u32 code)
 		printf(" %lu TB", (unsigned long)code >> 20);
 }
 
+static void dmi_memory_voltage_value(u16 code)
+{
+	if (code == 0)
+		printf(" Unknown");
+	else
+		printf(" %.3f V", (float)(i16)code / 1000);
+}
+
 static const char *dmi_memory_device_form_factor(u8 code)
 {
 	/* 7.18.1 */
@@ -2283,7 +2328,8 @@ static void dmi_memory_device_type_detail(u16 code)
 		"Cache DRAM",
 		"Non-Volatile",
 		"Registered (Buffered)",
-		"Unbuffered (Unregistered)"  /* 14 */
+		"Unbuffered (Unregistered)",
+		"LRDIMM"  /* 15 */
 	};
 
 	if ((code & 0x7FFE) == 0)
@@ -3213,7 +3259,7 @@ static void dmi_decode(const struct dmi_header *h, u16 ver)
 			printf("\tManufacturer: %s\n",
 				dmi_string(h, data[0x04]));
 			printf("\tType: %s\n",
-				dmi_chassis_type(data[0x05] & 0x7F));
+				dmi_chassis_type(data[0x05]));
 			printf("\tLock: %s\n",
 				dmi_chassis_lock(data[0x05] >> 7));
 			printf("\tVersion: %s\n",
@@ -3609,6 +3655,16 @@ static void dmi_decode(const struct dmi_header *h, u16 ver)
 			if (h->length < 0x22) break;
 			printf("\tConfigured Clock Speed:");
 			dmi_memory_device_speed(WORD(data + 0x20));
+			printf("\n");
+			if (h->length < 0x28) break;
+			printf("\tMinimum voltage: ");
+			dmi_memory_voltage_value(WORD(data + 0x22));
+			printf("\n");
+			printf("\tMaximum voltage: ");
+			dmi_memory_voltage_value(WORD(data + 0x24));
+			printf("\n");
+			printf("\tConfigured voltage: ");
+			dmi_memory_voltage_value(WORD(data + 0x26));
 			printf("\n");
 			break;
 

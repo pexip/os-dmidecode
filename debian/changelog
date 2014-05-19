@@ -1,3 +1,90 @@
+dmidecode (2.12-3) unstable; urgency=medium
+
+  * debian/control
+    - bump Standards-Version to 3.9.5
+    - add Vcs-*
+  * New Maintainer ( Closes: #748486)
+
+ -- Jörg Frings-Fürst <debian@jff-webhosting.net>  Mon, 19 May 2014 18:01:43 +0200
+
+dmidecode (2.12-2) unstable; urgency=low
+
+  * Also build for armhf (Closes: #715139).
+
+ -- Luk Claes <luk@debian.org>  Thu, 15 Aug 2013 11:24:31 +0200
+
+dmidecode (2.12-1) unstable; urgency=low
+
+  * New upstream version.
+  * Add watch file.
+  * Add upstream patch to kill warnings (Closes: #706004).
+
+ -- Luk Claes <luk@debian.org>  Tue, 07 May 2013 08:52:36 +0200
+
+dmidecode (2.11+20120326-3) unstable; urgency=low
+
+  * Take over maintenance with maintainer's consent.
+
+ -- Luk Claes <luk@debian.org>  Sun, 10 Mar 2013 21:55:43 +0100
+
+dmidecode (2.11+20120326-2) unstable; urgency=low
+
+  * Updating GPL boilerplate in copyright file.
+  * Switching to xz compression.
+
+ -- Daniel Baumann <daniel.baumann@progress-technologies.net>  Fri, 29 Jun 2012 04:59:24 +0200
+
+dmidecode (2.11+20120326-1) unstable; urgency=low
+
+  * Merging upstream version 2.11+20120326.
+  * Removing chassis-type.patch, included upstream.
+  * Removing type16-fix.patch, including upstream.
+  * Removing smbios-271.patch, included upstream.
+  * Rediffing manpage-hyphen.patch.
+  * Renumbering patches.
+
+ -- Daniel Baumann <daniel.baumann@progress-technologies.net>  Tue, 26 Jun 2012 01:07:02 +0200
+
+dmidecode (2.11-9) unstable; urgency=low
+
+  * Adding debug package.
+
+ -- Daniel Baumann <daniel.baumann@progress-technologies.net>  Fri, 18 May 2012 13:29:25 +0200
+
+dmidecode (2.11-8) unstable; urgency=low
+
+  * Using package type instead of custom field for udeb package.
+  * Adding patch to escape hypens in manpage.
+  * Also passing cppflags to make (Closes: #655891).
+
+ -- Daniel Baumann <daniel.baumann@progress-technologies.net>  Fri, 18 May 2012 12:36:27 +0200
+
+dmidecode (2.11-7) unstable; urgency=low
+
+  * Updating compression handling for udeb with newer debhelper.
+
+ -- Daniel Baumann <daniel.baumann@progress-technologies.net>  Fri, 18 May 2012 08:00:01 +0200
+
+dmidecode (2.11-6) unstable; urgency=low
+
+  * Also passing ldflags to configure to enable all hardening build
+    flags (Closes: #655891).
+  * Updating to standards version 3.9.3.
+  * Updating copyright file machine-readable format version 1.0.
+
+ -- Daniel Baumann <daniel.baumann@progress-technologies.net>  Mon, 16 Apr 2012 09:23:37 +0000
+
+dmidecode (2.11-5) unstable; urgency=low
+
+  * Updating year in copyright file.
+  * Updating to debhelper version 9.
+  * Adding patch to avoid overwriting build environment rather than to
+    just extend it.
+  * Simplifying CFLAGS handing in rules.
+  * Enabling hardening build options (Closes: #655891).
+
+ -- Daniel Baumann <daniel.baumann@progress-technologies.net>  Sat, 21 Jan 2012 11:16:31 +0100
+
 dmidecode (2.11-4) unstable; urgency=low
 
   * Using compression level 9 also for binary packages.

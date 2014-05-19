@@ -1,14 +1,16 @@
 Source: dmidecode
 Section: utils
 Priority: optional
-Maintainer: Daniel Baumann <daniel.baumann@progress-technologies.net>
-Build-Depends: debhelper (>= 8)
-Standards-Version: 3.9.2
+Maintainer: Jörg Frings-Fürst <debian@jff-webhosting.net>
+Build-Depends: debhelper (>= 9)
+Standards-Version: 3.9.5
+Vcs-Browser: http://anonscm.debian.org/gitweb/?p=collab-maint/dmidecode.git
+Vcs-Git: git://anonscm.debian.org/collab-maint/dmidecode.git
 Homepage: http://dmidecode.nongnu.org/
 
 Package: dmidecode
 Priority: important
-Architecture: any-amd64 ia64 any-i386
+Architecture: any-amd64 armhf ia64 any-i386
 Depends: ${misc:Depends}, ${shlibs:Depends}
 Description: SMBIOS/DMI table decoder
  Dmidecode reports information about the system's hardware as described in the
@@ -24,9 +26,20 @@ Description: SMBIOS/DMI table decoder
  Beware that DMI data have proven to be too unreliable to be blindly trusted.
  Dmidecode does not scan the hardware, it only reports what the BIOS told it to.
 
+Package: dmidecode-dbg
+Section: debug
+Priority: extra
+Architecture: any-amd64 armhf ia64 any-i386
+Depends: ${misc:Depends}, dmidecode (= ${binary:Version})
+Description: SMBIOS/DMI table decoder (debug)
+ Dmidecode reports information about the system's hardware as described in the
+ system BIOS according to the SMBIOS/DMI standard.
+ .
+ This package contains the debugging symbols.
+
 Package: dmidecode-udeb
 Section: debian-installer
-Architecture: any-amd64 ia64 any-i386
+Architecture: any-amd64 armhf ia64 any-i386
+Package-Type: udeb
 Depends: ${misc:Depends}, ${shlibs:Depends}
-XC-Package-Type: udeb
 Description: SMBIOS/DMI table decoder (udeb)
