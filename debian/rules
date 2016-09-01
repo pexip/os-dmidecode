@@ -2,11 +2,16 @@
 
 export DEB_BUILD_MAINT_OPTIONS = hardening=+all
 
+include /usr/share/dpkg/architecture.mk
+ifeq ($(origin CC),default)
+CC = $(DEB_HOST_GNU_TYPE)-gcc
+endif
+
 %:
 	dh ${@}
 
 override_dh_auto_build:
-	dh_auto_build -- CFLAGS="$(CFLAGS) $(CPPFLAGS) -Os -ansi" LDFLAGS="$(LDFLAGS)"
+	dh_auto_build -- CC=$(CC) CFLAGS="$(CFLAGS) $(CPPFLAGS) -Os -ansi" LDFLAGS="$(LDFLAGS)"
 
 override_dh_auto_install:
 	dh_auto_install -- prefix=/usr
@@ -14,9 +19,6 @@ override_dh_auto_install:
 	# remove useless files
 	rm -f debian/tmp/usr/share/doc/dmidecode/CHANGELOG
 	rm -f debian/tmp/usr/share/doc/dmidecode/README
-
-override_dh_builddeb:
-	dh_builddeb -- -Zxz -z9
 
 override_dh_install:
 	dh_install --fail-missing
