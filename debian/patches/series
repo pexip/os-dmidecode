@@ -1,5 +1,5 @@
 01-ansi-c.patch
-02-chassis-type.patch
-03-hurd.patch
-04-type16-fix.patch
-05-smbios-271.patch
+02-hurd.patch
+03-build.patch
+04-manpage-hyphen.patch
+05-supported-smbios-ver.patch
