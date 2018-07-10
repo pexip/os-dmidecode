@@ -1,0 +1,27 @@
+From ab02b117511230e46bbef7febbd854b9c832c13c Mon Sep 17 00:00:00 2001
+From: Xie XiuQi <xiexiuqi@huawei.com>
+Date: Mon, 01 Feb 2016 08:30:31 +0000
+Subject: Use DWORD for Structure table maximum size in SMBIOS3
+
+0Ch DWORD "Structure table maximum size"
+
+Maximum size of SMBIOS Structure Table, pointed to by
+the Structure Table Address, in bytes. The actual size is
+guaranteed to be less or equal to the maximum size.
+
+Signed-off-by: Xie XiuQi <xiexiuqi@huawei.com>
+Signed-off-by: Jean Delvare <jdelvare@suse.de>
+---
+Index: trunk/dmidecode.c
+===================================================================
+--- trunk.orig/dmidecode.c
++++ trunk/dmidecode.c
+@@ -4612,7 +4612,7 @@ static int smbios3_decode(u8 *buf, const
+ 	}
+ 
+ 	dmi_table(((off_t)offset.h << 32) | offset.l,
+-		  WORD(buf + 0x0C), 0, ver, devmem, flags | FLAG_STOP_AT_EOT);
++		  DWORD(buf + 0x0C), 0, ver, devmem, flags | FLAG_STOP_AT_EOT);
+ 
+ 	if (opt.flags & FLAG_DUMP_BIN)
+ 	{

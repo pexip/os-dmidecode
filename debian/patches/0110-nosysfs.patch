@@ -1,0 +1,32 @@
+From 33b5aafc6ee6b5de9f2526fb1cf4b14d1e16e4f0 Mon Sep 17 00:00:00 2001
+From: Roy Franz <roy.franz@linaro.org>
+Date: Thu, 01 Oct 2015 06:41:43 +0000
+Subject: Add "--no-sysfs" option description to -h output
+
+A description of --no-sysfs was not added to the output of "-h" when
+the feature was added, so add it now.
+---
+Index: trunk/CHANGELOG
+===================================================================
+--- trunk.orig/CHANGELOG
++++ trunk/CHANGELOG
+@@ -1,3 +1,7 @@
++2015-10-01  Roy Franz  <roy.franz@linaro.org>
++
++	* dmiopt.c: Add "--no-sysfs" option description to -h output.
++
+ 2015-09-03  Jean Delvare  <jdelvare@suse.de>
+ 
+ 	* version.h: Set version to 3.0.
+Index: trunk/dmiopt.c
+===================================================================
+--- trunk.orig/dmiopt.c
++++ trunk/dmiopt.c
+@@ -314,6 +314,7 @@ void print_help(void)
+ 		" -u, --dump             Do not decode the entries\n"
+ 		"     --dump-bin FILE    Dump the DMI data to a binary file\n"
+ 		"     --from-dump FILE   Read the DMI data from a binary file\n"
++		"     --no-sysfs         Do not attempt to read DMI data from sysfs files\n"
+ 		" -V, --version          Display the version and exit\n";
+ 
+ 	printf("%s", help);

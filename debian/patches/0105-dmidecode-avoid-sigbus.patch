@@ -1,0 +1,50 @@
+Description: Avoid SIGBUS on mmap failure
+ mmap will fail with SIGBUS if trying to map a non-existent portion of
+ a file. While this should never happen with /dev/mem, it can happen if
+ passing a regular file with option -d. While people should no longer
+ do that, failure gracefully seems better than crashing. So check for
+ the file size before calling mmap.
+Author: Jean Delvare <jdelvare@suse.de>
+Origin: https://savannah.nongnu.org/bugs/download.php?file_id=35008
+Bug: https://savannah.nongnu.org/bugs/index.php?46066
+Bug-Debian: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=796963
+Last-Update: 2015-10-01
+----
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+--- dmidecode.orig/util.c	2015-09-29 11:27:02.136566009 +0200
++++ dmidecode/util.c	2015-09-29 11:37:24.746191083 +0200
+@@ -152,6 +152,7 @@ void *mem_chunk(off_t base, size_t len,
+ 	void *p;
+ 	int fd;
+ #ifdef USE_MMAP
++	struct stat statbuf;
+ 	off_t mmoffset;
+ 	void *mmp;
+ #endif
+@@ -169,6 +170,26 @@ void *mem_chunk(off_t base, size_t len,
+ 	}
+ 
+ #ifdef USE_MMAP
++	if (fstat(fd, &statbuf) == -1)
++	{
++		fprintf(stderr, "%s: ", devmem);
++		perror("stat");
++		free(p);
++		return NULL;
++	}
++
++	/*
++	 * mmap() will fail with SIGBUS if trying to map beyond the end of
++	 * the file.
++	 */
++	if (S_ISREG(statbuf.st_mode) && base + (off_t)len > statbuf.st_size)
++	{
++		fprintf(stderr, "mmap: Can't map beyond end of file %s\n",
++			devmem);
++		free(p);
++		return NULL;
++	}
++
+ #ifdef _SC_PAGESIZE
+ 	mmoffset = base % sysconf(_SC_PAGESIZE);
+ #else

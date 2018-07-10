@@ -1,3 +1,73 @@
+dmidecode (3.0-4) unstable; urgency=medium
+
+  * debian/rules: Fix FTCBFS to pass suitable CC to make. (Closes: #835921).
+    Thanks to Helmut Grohne <helmut@subdivi.de>.
+
+ -- Jörg Frings-Fürst <debian@jff-webhosting.net>  Thu, 01 Sep 2016 04:59:53 +0200
+
+dmidecode (3.0-3) unstable; urgency=medium
+
+  * Rename patches.
+  * Add recommended patches from upstream (Closes: #824180):
+    - debian/patches/0110-nosysfs.patch
+    - debian/patches/0115-no_smbios_DMI_entry_point.patch
+    - debian/patches/0120-return_actual_data_size.patch
+    - debian/patches/0125-use_read_file_to_read_DMI_table_from_sysfs.patch
+    - debian/patches/0130-use_DWORD_for_table_max_size.patch
+    - debian/patches/0135-hide_fixup_msg.patch
+  * debian/control:
+    - Bump Standards-Version to 3.9.8 (no changes required).
+    - Change Vcs-* to secure URIs.
+  * debian/copyright:
+    - Add year 2016.
+    - Add new upstream author Xie XiuQi <xiexiuqi@huawei.com>.
+
+ -- Jörg Frings-Fürst <debian@jff-webhosting.net>  Sun, 15 May 2016 18:33:09 +0200
+
+dmidecode (3.0-2) unstable; urgency=medium
+
+  * New debian/patches/05-dmidecode-avoid-sigbus.patch (Closes: #796963):
+    - Avoid SIGBUS on mmap failure
+
+ -- Jörg Frings-Fürst <debian@jff-webhosting.net>  Thu, 01 Oct 2015 10:01:04 +0200
+
+dmidecode (3.0-1) unstable; urgency=medium
+
+  * Correct typo at debian/changelog.
+  * New upstream release.
+    - Refresh patches:
+      + debian/patches/02-hurd.patch
+      + debian/patches/03-build.patch
+    - Remove applied patches:
+      + debian/patches/04-manpage-hyphen.patch
+      + debian/patches/05-supported-smbios-ver.patch
+  * debian/watch:
+    - Add opts for signing key.
+    - Force upload as xz archive.
+  * New debian/upstream/signing-key.pgp.
+  * New debian/source/include-binaries:
+    - Add debian/upstream/signing-key.pgp.
+  * New debian/upstream/metadata:
+    - Add some DEP-12 upstream metadata.
+
+ -- Jörg Frings-Fürst <debian@jff-webhosting.net>  Tue, 29 Sep 2015 05:42:43 +0200
+
+dmidecode (2.12-4) unstable; urgency=low
+
+  * debian/control:
+    - Bump Standards-Version to 3.9.6 (no changes required).
+    - Add arm64 to Architecture (Closes: #767965 ).
+    - Remove unwanted debian/source/options.
+    - Change Vcs-* to new cgit based repository viewer.
+  * debian/copyright:
+    - Add year 2015.
+  * debian/rules:
+    - Remove override_dh_builddeb because compression xz is now standard.
+  * debian/patches/05-supported-smbios-ver.patch:
+    - Add description.
+
+ -- Jörg Frings-Fürst <debian@jff-webhosting.net>  Mon, 27 Apr 2015 12:05:44 +0200
+
 dmidecode (2.12-3pexip1) pexip; urgency=low
 
   * Migrate to Jessie

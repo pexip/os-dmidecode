@@ -1,0 +1,46 @@
+From cff11afa886a0147d734b650755d232b5e7f2099 Mon Sep 17 00:00:00 2001
+From: Jean Delvare <jdelvare@suse.de>
+Date: Tue, 03 May 2016 13:32:21 +0000
+Subject: dmidecode: Hide irrelevant fixup message
+
+Only display the message about type 34 length fixup if the entry in
+question is going to be displayed. Otherwise it's only confusing.
+
+This fixes bug #109024:
+http://savannah.nongnu.org/support/?109024
+
+Fixes: 3f70b3515d91 ("dmidecode: Fix up invalid DMI type 34 structure length")
+---
+Index: trunk/dmidecode.c
+===================================================================
+--- trunk.orig/dmidecode.c
++++ trunk/dmidecode.c
+@@ -2946,7 +2946,7 @@ static void dmi_64bit_memory_error_addre
+  * first 5 characters of the device name to be trimmed. It's easy to
+  * check and fix, so do it, but warn.
+  */
+-static void dmi_fixup_type_34(struct dmi_header *h)
++static void dmi_fixup_type_34(struct dmi_header *h, int display)
+ {
+ 	u8 *p = h->data;
+ 
+@@ -2954,7 +2954,9 @@ static void dmi_fixup_type_34(struct dmi
+ 	if (h->length == 0x10
+ 	 && is_printable(p + 0x0B, 0x10 - 0x0B))
+ 	{
+-		printf("Invalid entry length (%u). Fixed up to %u.\n", 0x10, 0x0B);
++		if (!(opt.flags & FLAG_QUIET) && display)
++			printf("Invalid entry length (%u). Fixed up to %u.\n",
++				0x10, 0x0B);
+ 		h->length = 0x0B;
+ 	}
+ }
+@@ -4443,7 +4445,7 @@ static void dmi_table_decode(u8 *buf, u3
+ 
+ 		/* Fixup a common mistake */
+ 		if (h.type == 34)
+-			dmi_fixup_type_34(&h);
++			dmi_fixup_type_34(&h, display);
+ 
+ 		/* look for the next handle */
+ 		next = data + h.length;

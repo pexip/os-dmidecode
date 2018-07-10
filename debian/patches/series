@@ -1,5 +1,10 @@
-01-ansi-c.patch
-02-hurd.patch
-03-build.patch
-04-manpage-hyphen.patch
-05-supported-smbios-ver.patch
+0100-ansi-c.patch
+0001-hurd.patch
+0005-build.patch
+0105-dmidecode-avoid-sigbus.patch
+0110-nosysfs.patch
+0115-no_smbios_DMI_entry_point.patch
+0120-return_actual_data_size.patch
+0125-use_read_file_to_read_DMI_table_from_sysfs.patch
+0130-use_DWORD_for_table_max_size.patch
+0135-hide_fixup_msg.patch
