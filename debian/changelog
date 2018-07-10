@@ -1,3 +1,9 @@
+dmidecode (3.0-4pexip1) pexip; urgency=medium
+
+  * Migrate to Stretch
+
+ -- John-Mark Bell <jmb@pexip.com>  Tue, 10 Jul 2018 00:53:21 +0000
+
 dmidecode (3.0-4) unstable; urgency=medium
 
   * debian/rules: Fix FTCBFS to pass suitable CC to make. (Closes: #835921).
