@@ -1,6 +1,9 @@
 #!/usr/bin/make -f
 
 export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+export DEB_CFLAGS_MAINT_APPEND  = -fPIE
+export DEB_LDFLAGS_MAINT_APPEND = -fPIE -pie
+
 
 include /usr/share/dpkg/architecture.mk
 ifeq ($(origin CC),default)
@@ -22,6 +25,3 @@ override_dh_auto_install:
 
 override_dh_install:
 	dh_install --fail-missing
-
-override_dh_strip:
-	dh_strip --dbg-package=dmidecode-dbg

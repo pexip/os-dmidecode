@@ -1,3 +1,65 @@
+dmidecode (3.2-1) unstable; urgency=medium
+
+  * New upstream release:
+    - Refresh patches.
+  * Declare compliance with Debian Policy 4.2.1 (No changes needed).
+  * debian/dmidecode.docs:
+    - Add README.
+  * debian/copyright:
+    - Add year 2018 to * for Jean Delvare <jdelvare@suse.de>.
+
+ -- Jörg Frings-Fürst <debian@jff.email>  Sun, 07 Oct 2018 06:05:15 +0200
+
+dmidecode (3.1-2) unstable; urgency=medium
+
+  * debian/control:
+    - Change to my new email address.
+    - Use secure homepage URI.
+    - Switch Vcs-* to new location (Closes: #902259).
+  * debian/copyright:
+    - Change to my new email address.
+    - Use secure copyright format URI.
+    - Add year 2018 to debian/*.
+  * debian/rules:
+    - Add "export DEB_CFLAGS_MAINT_APPEND  = -fPIE" and
+      "export DEB_LDFLAGS_MAINT_APPEND = -fPIE -pie" to fix missing CFLAGS
+      and LDFLAGS.
+  * debian/watch:
+    - Use secure URI.
+    - Switch to version 4.
+  * Declare compliance with Debian Policy 4.1.5 (No changes needed).
+  * Migrate to debhelper 11:
+    - Change debian/compat to 11.
+    - Bump minimum debhelper version in debian/control to >= 11.
+
+ -- Jörg Frings-Fürst <debian@jff.email>  Sun, 05 Aug 2018 20:22:07 +0200
+
+dmidecode (3.1-1) unstable; urgency=medium
+
+  * New upstream release (LP: #1688162) (Closes: #860897):
+    - Remove applied patches:
+      + debian/patches/0110-nosysfs.patch
+      + debian/patches/0115-no_smbios_DMI_entry_point.patch
+      + debian/patches/0120-return_actual_data_size.patch
+      + debian/patches/0125-use_read_file_to_read_DMI_table_from_sysfs.patch
+      + debian/patches/0130-use_DWORD_for_table_max_size.patch
+      + debian/patches/0135-hide_fixup_msg.patch
+  * debian/copyright:
+    - Add year 2017.
+    - Change upstream email address.
+  * debian/control:
+    - Change Homepage.
+  * Migrate to debhelper 10:
+    - Change debian/compat to 10.
+    - Bump minimum debhelper version in debian/control to >= 10.
+  * Use the automatic debug symbol packages:
+    - Remove dmidecode-dbg section from debian/control.
+    - Remove override_dh_strip from debian/rules.
+  * New README.source to explain the branching model used.
+  * Declare compliance with Debian Policy 4.0.0. (No changes needed).
+
+ -- Jörg Frings-Fürst <debian@jff-webhosting.net>  Sat, 24 Jun 2017 23:21:09 +0200
+
 dmidecode (3.0-4) unstable; urgency=medium
 
   * debian/rules: Fix FTCBFS to pass suitable CC to make. (Closes: #835921).

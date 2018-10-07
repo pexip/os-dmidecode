@@ -2,7 +2,7 @@
  * BIOS Decode
  *
  *   Copyright (C) 2000-2002 Alan Cox <alan@redhat.com>
- *   Copyright (C) 2002-2015 Jean Delvare <jdelvare@suse.de>
+ *   Copyright (C) 2002-2017 Jean Delvare <jdelvare@suse.de>
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -52,6 +52,9 @@
  *  - Fujitsu application panel technical details
  *    As of July 23rd, 2004
  *    http://apanel.sourceforge.net/tech.php
+ *  - Intel Multiprocessor Specification
+ *    Version 1.4
+ *    http://www.intel.com/design/archives/processors/pro/docs/242016.htm
  */
 
 #include <stdio.h>
@@ -70,11 +73,15 @@ struct opt
 {
 	const char *devmem;
 	unsigned int flags;
+	unsigned char pir;
 };
 static struct opt opt;
 
 #define FLAG_VERSION            (1 << 0)
 #define FLAG_HELP               (1 << 1)
+
+#define PIR_SHORT               0
+#define PIR_FULL                1
 
 struct bios_entry {
 	const char *anchor;
@@ -348,7 +355,7 @@ static void pir_slot_number(u8 code)
 	if (code == 0)
 		printf(" on-board");
 	else
-		printf(" slot number %u", code);
+		printf(" slot %u", code);
 }
 
 static size_t pir_length(const u8 *p)
@@ -356,16 +363,26 @@ static size_t pir_length(const u8 *p)
 	return WORD(p + 6);
 }
 
+static void pir_link_bitmap(char letter, const u8 *p)
+{
+	if (p[0] == 0) /* Not connected */
+		return;
+
+	printf("\t\tINT%c#: Link 0x%02x, IRQ Bitmap", letter, p[0]);
+	pir_irqs(WORD(p + 1));
+	printf("\n");
+}
+
 static int pir_decode(const u8 *p, size_t len)
 {
-	int i;
+	int i, n;
 
 	if (len < 32 || !checksum(p, WORD(p + 6)))
 		return 0;
 
 	printf("PCI Interrupt Routing %u.%u present.\n",
 		p[5], p[4]);
-	printf("\tRouter ID: %02x:%02x.%1x\n",
+	printf("\tRouter Device: %02x:%02x.%1x\n",
 		p[8], p[9]>>3, p[9] & 0x07);
 	printf("\tExclusive IRQs:");
 	pir_irqs(WORD(p + 10));
@@ -377,38 +394,19 @@ static int pir_decode(const u8 *p, size_t len)
 		printf("\tMiniport Data: 0x%08X\n",
 			DWORD(p + 16));
 
-	for (i = 1; i <= (WORD(p + 6) - 32) / 16; i++)
+	n = (len - 32) / 16;
+	for (i = 1, p += 32; i <= n; i++, p += 16)
 	{
-		printf("\tSlot Entry %u: ID %02x:%02x,",
-			i, p[(i + 1) * 16], p[(i + 1) * 16 + 1] >> 3);
-		pir_slot_number(p[(i + 1) * 16 + 14]);
+		printf("\tDevice: %02x:%02x,", p[0], p[1] >> 3);
+		pir_slot_number(p[14]);
 		printf("\n");
-/*		printf("\tSlot Entry %u\n", i);
-		printf("\t\tID: %02x:%02x\n",
-			p[(i + 1) * 16], p[(i + 1) * 16 + 1] >> 3);
-		printf("\t\tLink Value for INTA#: %u\n",
-			p[(i + 1) * 16 + 2]);
-		printf("\t\tIRQ Bitmap for INTA#:");
-		pir_irqs(WORD(p + (i + 1) * 16 + 3));
-		printf("\n");
-		printf("\t\tLink Value for INTB#: %u\n",
-			p[(i + 1) * 16 + 5]);
-		printf("\t\tIRQ Bitmap for INTB#:");
-		pir_irqs(WORD(p + (i + 1) * 16 + 6));
-		printf("\n");
-		printf("\t\tLink Value for INTC#: %u\n",
-			p[(i + 1) * 16 + 8]);
-		printf("\t\tIRQ Bitmap for INTC#:");
-		pir_irqs(WORD(p + (i + 1) * 16 + 9));
-		printf("\n");
-		printf("\t\tLink Value for INTD#: %u\n",
-			p[(i + 1) * 16 + 11]);
-		printf("\t\tIRQ Bitmap for INTD#:");
-		pir_irqs(WORD(p + (i + 1) * 16 + 12));
-		printf("\n");
-		printf("\t\tSlot Number:");
-		pir_slot_number(p[(i + 1) * 16 + 14]);
-		printf("\n");*/
+		if (opt.pir == PIR_FULL)
+		{
+			pir_link_bitmap('A', p + 2);
+			pir_link_bitmap('B', p + 5);
+			pir_link_bitmap('C', p + 8);
+			pir_link_bitmap('D', p + 11);
+		}
 	}
 
 	return 1;
@@ -546,6 +544,34 @@ static int fjkeyinf_decode(const u8 *p, size_t len)
 }
 
 /*
+ * Intel Multiprocessor
+ */
+
+static size_t mp_length(const u8 *p)
+{
+	return 16 * p[8];
+}
+
+static int mp_decode(const u8 *p, size_t len)
+{
+	if (!checksum(p, len))
+		return 0;
+
+	printf("Intel Multiprocessor present.\n");
+	printf("\tSpecification Revision: %s\n",
+		p[9] == 0x01 ? "1.1" : p[9] == 0x04 ? "1.4" : "Invalid");
+	if (p[11])
+		printf("\tDefault Configuration: #%d\n", p[11]);
+	else
+		printf("\tConfiguration Table Address: 0x%08X\n",
+			DWORD(p + 4));
+	printf("\tMode: %s\n", p[12] & (1 << 7) ?
+		"IMCR and PIC" : "Virtual Wire");
+
+	return 1;
+}
+
+/*
  * Main
  */
 
@@ -562,6 +588,7 @@ static struct bios_entry bios_entries[] = {
 	{ "32OS", 0, 0xE0000, 0xFFFFF, compaq_length, compaq_decode },
 	{ "\252\125VPD", 0, 0xF0000, 0xFFFFF, vpd_length, vpd_decode },
 	{ "FJKEYINF", 0, 0xF0000, 0xFFFFF, fjkeyinf_length, fjkeyinf_decode },
+	{ "_MP_", 0, 0xE0000, 0xFFFFF, mp_length, mp_decode },
 	{ NULL, 0, 0, 0, NULL, NULL }
 };
 
@@ -584,6 +611,7 @@ static int parse_command_line(int argc, char * const argv[])
 	const char *optstring = "d:hV";
 	struct option longopts[] = {
 		{ "dev-mem", required_argument, NULL, 'd' },
+		{ "pir", required_argument, NULL, 'P' },
 		{ "help", no_argument, NULL, 'h' },
 		{ "version", no_argument, NULL, 'V' },
 		{ NULL, 0, NULL, 0 }
@@ -594,6 +622,10 @@ static int parse_command_line(int argc, char * const argv[])
 		{
 			case 'd':
 				opt.devmem = optarg;
+				break;
+			case 'P':
+				if (strcmp(optarg, "full") == 0)
+					opt.pir = PIR_FULL;
 				break;
 			case 'h':
 				opt.flags |= FLAG_HELP;
@@ -614,6 +646,7 @@ static void print_help(void)
 		"Usage: biosdecode [OPTIONS]\n"
 		"Options are:\n"
 		" -d, --dev-mem FILE     Read memory from device FILE (default: " DEFAULT_MEM_DEV ")\n"
+		"     --pir full         Decode the details of the PCI IRQ routing table\n"
 		" -h, --help             Display this help text and exit\n"
 		" -V, --version          Display the version and exit\n";
 
