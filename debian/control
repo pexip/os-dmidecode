@@ -8,7 +8,7 @@ Standards-Version: 3.9.8
 Vcs-Browser: https://anonscm.debian.org/cgit/collab-maint/dmidecode.git
 Vcs-Git: https://anonscm.debian.org/cgit/collab-maint/dmidecode.git
 Homepage: https://dmidecode.nongnu.org/
-XS-Pexip-Upstream: http://ftp.debian.org/debian/ stretch
+XS-Pexip-Upstream: http://ftp.debian.org/debian/ buster
 
 Package: dmidecode
 Priority: important
