@@ -1,3 +1,9 @@
+dmidecode (3.2-1pexip1) pexip; urgency=medium
+
+  * Migrate to Buster
+
+ -- Vincent Sanders <vince@pexip.com>  Fri, 28 Feb 2020 13:41:16 +0000
+
 dmidecode (3.2-1) unstable; urgency=medium
 
   * New upstream release:
