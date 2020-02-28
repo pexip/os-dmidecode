@@ -2,12 +2,12 @@ Source: dmidecode
 Section: utils
 Priority: optional
 Maintainer: Pexip AS <packaging@pexip.com>
-XSBC-Pexip-Original-Maintainer: Jörg Frings-Fürst <debian@jff-webhosting.net>
-Build-Depends: debhelper (>= 9)
-Standards-Version: 3.9.8
-Vcs-Browser: https://anonscm.debian.org/cgit/collab-maint/dmidecode.git
-Vcs-Git: https://anonscm.debian.org/cgit/collab-maint/dmidecode.git
-Homepage: https://dmidecode.nongnu.org/
+XSBC-Pexip-Original-Maintainer: Jörg Frings-Fürst <debian@jff.email>
+Build-Depends: debhelper (>= 11)
+Standards-Version: 4.2.1
+Vcs-Git: git://jff.email/opt/git/dmidecode.git
+Vcs-Browser: https://jff.email/cgit/dmidecode.git/
+Homepage: https://nongnu.org/dmidecode/
 XS-Pexip-Upstream: http://ftp.debian.org/debian/ buster
 
 Package: dmidecode
@@ -27,17 +27,6 @@ Description: SMBIOS/DMI table decoder
  .
  Beware that DMI data have proven to be too unreliable to be blindly trusted.
  Dmidecode does not scan the hardware, it only reports what the BIOS told it to.
-
-Package: dmidecode-dbg
-Section: debug
-Priority: extra
-Architecture: any-amd64 arm64 armhf ia64 any-i386
-Depends: ${misc:Depends}, dmidecode (= ${binary:Version})
-Description: SMBIOS/DMI table decoder (debug)
- Dmidecode reports information about the system's hardware as described in the
- system BIOS according to the SMBIOS/DMI standard.
- .
- This package contains the debugging symbols.
 
 Package: dmidecode-udeb
 Section: debian-installer
