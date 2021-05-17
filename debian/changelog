@@ -1,3 +1,67 @@
+dmidecode (3.3-2) unstable; urgency=medium
+
+  * Add upstream recommended patches (Closes: #987033):
+    - New debian/patches/0145-Fix_condition_error_in_ascii_filter.patch.
+    - New debian/patches/0150-Fix_crash.patch.
+  * Declare compliance with Debian Policy 4.5.1 (No changes needed).
+  * debian/copyright:
+    - Add year 2021 to myself.
+
+ -- Jörg Frings-Fürst <debian@jff.email>  Mon, 17 May 2021 18:53:43 +0200
+
+dmidecode (3.3-1) unstable; urgency=medium
+
+  * New upstream release.
+    - Remove upstream applied patches:
+      + debian/patches/0140-Fix_scan_entry_point.patch
+      + debian/patches/0005-build.patch
+    + Refresh debian/patches/0001-hurd.patch.
+  * Declare compliance with Debian Policy 4.5.0 (No changes needed).
+  * Migrate to debhelper 13:
+    - Bump debhelper-compat version in debian/control to = 13.
+  * Remove unused debian/source/include-binaries.
+  * Remove superficial test.
+  * debian/copyright:
+    - Add year 2020 to Jean Delvare and myself.
+
+ -- Jörg Frings-Fürst <debian@jff.email>  Sat, 17 Oct 2020 10:31:23 +0200
+
+dmidecode (3.2-4) unstable; urgency=medium
+
+  * Add "Restrictions: superficial" to debian/tests/control (Closes: #969819).
+
+ -- Jörg Frings-Fürst <debian@jff.email>  Mon, 14 Sep 2020 14:18:46 +0200
+
+dmidecode (3.2-3) unstable; urgency=medium
+
+  * Fix Scan only /dev/mem for entry point on x86 (Closes: #946911):
+    - New debian/patches/0140-Fix_scan_entry_point.patch (Cherry picked from
+      upstream Commit e12ec26e19e02281d3e7258c3aabb88a5cf5ec1d.
+  * Declare compliance with Debian Policy 4.4.1.2 (No changes needed).
+  * Add Smoketest:
+    - New debian/tests/control.
+  * Switch to debhelper-compat:
+    - debian/control: Replace debhelper with debhelper-compat.
+    - Remove debian/compat.
+  * debian/control: Add Rules-Requires-Root.
+  * Refresh debian/copyright.
+
+ -- Jörg Frings-Fürst <debian@jff.email>  Mon, 23 Dec 2019 18:56:41 +0100
+
+dmidecode (3.2-2) unstable; urgency=medium
+
+  * Mark dmidecode Multi-Arch: foreign (Closes: #929455).
+   - Thanks to: Helmut Grohne <helmut@subdivi.de>.
+  * Declare compliance with Debian Policy 4.4.0 (No changes needed).
+  * debian/copyright:
+    - Add year 2019 to debian/*.
+  * Migrate to debhelper 12:
+    - Change debian/compat to 12.
+    - Bump minimum debhelper version in debian/control to >= 12.
+    - debian/rules: Remove obsolete dh_install --fail-missing.
+
+ -- Jörg Frings-Fürst <debian@jff.email>  Thu, 11 Jul 2019 20:30:31 +0200
+
 dmidecode (3.2-1) unstable; urgency=medium
 
   * New upstream release:

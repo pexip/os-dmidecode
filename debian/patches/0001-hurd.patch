@@ -5,7 +5,7 @@ Index: trunk/Makefile
 ===================================================================
 --- trunk.orig/Makefile
 +++ trunk/Makefile
-@@ -43,7 +43,7 @@ INSTALL_PROGRAM := $(INSTALL) -m 755
+@@ -44,7 +44,7 @@ INSTALL_PROGRAM := $(INSTALL) -m 755
  RM              := rm -f
  
  # BSD make provides $MACHINE, but GNU make doesn't

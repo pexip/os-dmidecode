@@ -151,11 +151,14 @@ static const struct string_keyword opt_string_keyword[] = {
 	{ "bios-vendor", 0, 0x04 },
 	{ "bios-version", 0, 0x05 },
 	{ "bios-release-date", 0, 0x08 },
+	{ "bios-revision", 0, 0x15 },		/* 0x14 and 0x15 */
+	{ "firmware-revision", 0, 0x17 },	/* 0x16 and 0x17 */
 	{ "system-manufacturer", 1, 0x04 },
 	{ "system-product-name", 1, 0x05 },
 	{ "system-version", 1, 0x06 },
 	{ "system-serial-number", 1, 0x07 },
 	{ "system-uuid", 1, 0x08 },             /* dmi_system_uuid() */
+	{ "system-sku-number", 1, 0x19 },
 	{ "system-family", 1, 0x1a },
 	{ "baseboard-manufacturer", 2, 0x04 },
 	{ "baseboard-product-name", 2, 0x05 },
