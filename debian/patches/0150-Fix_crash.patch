@@ -1,0 +1,21 @@
+Description: Fix crash with -u option
+Origin: upstream, http://git.savannah.gnu.org/cgit/dmidecode.git/commit/?id=11e134e54d15e67a64c39a623f492a28df922517
+Bug-Debian: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=987033
+Last-Update: 2021-05-07
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+Index: trunk/dmidecode.c
+===================================================================
+--- trunk.orig/dmidecode.c
++++ trunk/dmidecode.c
+@@ -248,9 +248,9 @@ static void dmi_dump(const struct dmi_he
+ 			{
+ 				int j, l = strlen(s) + 1;
+ 
+-				off = 0;
+ 				for (row = 0; row < ((l - 1) >> 4) + 1; row++)
+ 				{
++					off = 0;
+ 					for (j = 0; j < 16 && j < l - (row << 4); j++)
+ 						off += sprintf(raw_data + off,
+ 						       j ? " %02X" : "%02X",

@@ -1,0 +1,18 @@
+Description: Fix the condition error in ascii_filter
+Origin: upstream, http://git.savannah.gnu.org/cgit/dmidecode.git/commit/?id=1117390ccd9cea139638db6f460bb6de70e28f94
+Last-Update: 2021-05-07
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+Index: trunk/dmidecode.c
+===================================================================
+--- trunk.orig/dmidecode.c
++++ trunk/dmidecode.c
+@@ -116,7 +116,7 @@ static void ascii_filter(char *bp, size_
+ 	size_t i;
+ 
+ 	for (i = 0; i < len; i++)
+-		if (bp[i] < 32 || bp[i] == 127)
++		if (bp[i] < 32 || bp[i] >= 127)
+ 			bp[i] = '.';
+ }
+ 

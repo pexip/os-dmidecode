@@ -1,6 +1,8 @@
+0145-Fix_condition_error_in_ascii_filter.patch
+0150-Fix_crash.patch
 0100-ansi-c.patch
 0001-hurd.patch
-0005-build.patch
+#0005-build.patch
 #0105-dmidecode-avoid-sigbus.patch
 #0110-nosysfs.patch
 #0115-no_smbios_DMI_entry_point.patch
@@ -8,3 +10,4 @@
 #0125-use_read_file_to_read_DMI_table_from_sysfs.patch
 #0130-use_DWORD_for_table_max_size.patch
 #0135-hide_fixup_msg.patch
+#0140-Fix_scan_entry_point.patch

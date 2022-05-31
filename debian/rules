@@ -22,6 +22,3 @@ override_dh_auto_install:
 	# remove useless files
 	rm -f debian/tmp/usr/share/doc/dmidecode/CHANGELOG
 	rm -f debian/tmp/usr/share/doc/dmidecode/README
-
-override_dh_install:
-	dh_install --fail-missing
