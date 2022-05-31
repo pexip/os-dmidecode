@@ -8,7 +8,7 @@ Standards-Version: 4.2.1
 Vcs-Git: git://jff.email/opt/git/dmidecode.git
 Vcs-Browser: https://jff.email/cgit/dmidecode.git/
 Homepage: https://nongnu.org/dmidecode/
-XS-Pexip-Upstream: http://ftp.debian.org/debian/ buster
+XS-Pexip-Upstream: http://deb.debian.org/debian/ bullseye
 
 Package: dmidecode
 Priority: important
