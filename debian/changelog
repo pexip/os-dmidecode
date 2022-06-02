@@ -1,3 +1,9 @@
+dmidecode (3.3-2pexip1) pexip; urgency=medium
+
+  * Initial bullseye build
+
+ -- Mark Hymers <mark.hymers@pexip.com>  Thu, 02 Jun 2022 14:42:09 +0100
+
 dmidecode (3.3-2) unstable; urgency=medium
 
   * Add upstream recommended patches (Closes: #987033):
