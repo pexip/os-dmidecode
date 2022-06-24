@@ -1,3 +1,9 @@
+dmidecode (3.3-2pexip2) pexip-bullseye; urgency=medium
+
+  * Main bullseye build
+
+ -- Mark Hymers <mark.hymers@pexip.com>  Fri, 24 Jun 2022 13:55:08 +0100
+
 dmidecode (3.3-2pexip1) pexip; urgency=medium
 
   * Initial bullseye build
