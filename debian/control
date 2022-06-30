@@ -3,7 +3,7 @@ Section: utils
 Priority: optional
 Maintainer: Jörg Frings-Fürst <debian@jff.email>
 Build-Depends: debhelper-compat (= 13)
-Standards-Version: 4.5.1
+Standards-Version: 4.6.1.0
 Rules-Requires-Root: no
 Vcs-Git: git://jff.email/opt/git/dmidecode.git
 Vcs-Browser: https://jff.email/cgit/dmidecode.git/
@@ -11,7 +11,7 @@ Homepage: https://nongnu.org/dmidecode/
 
 Package: dmidecode
 Priority: important
-Architecture: any-amd64 arm64 armhf ia64 any-i386
+Architecture: any-amd64 arm64 armhf ia64 any-i386 riscv64
 Multi-Arch: foreign
 Depends: ${misc:Depends}, ${shlibs:Depends}
 Description: SMBIOS/DMI table decoder
