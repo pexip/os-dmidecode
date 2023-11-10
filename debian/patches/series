@@ -1,5 +1,5 @@
-0145-Fix_condition_error_in_ascii_filter.patch
-0150-Fix_crash.patch
+#0145-Fix_condition_error_in_ascii_filter.patch
+#0150-Fix_crash.patch
 0100-ansi-c.patch
 0001-hurd.patch
 #0005-build.patch

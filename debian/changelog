@@ -1,3 +1,23 @@
+dmidecode (3.4-1) unstable; urgency=medium
+
+  * New upstream release.
+    - Remove upstream applied patches:
+      + debian/patches/0145-Fix_condition_error_in_ascii_filter.patch
+      + debian/patches/0150-Fix_crash.patch
+    - Refresh upstream signing key.
+  * Declare compliance with Debian Policy 4.6.1.0 (No changes needed).
+  * debian/copyright:
+    - Add year 2022 to myself.
+
+ -- Jörg Frings-Fürst <debian@jff.email>  Thu, 30 Jun 2022 20:37:08 +0200
+
+dmidecode (3.3-3) unstable; urgency=medium
+
+  * Add Architecture riscv64 (Closes: #991854).
+  * Declare compliance with Debian Policy 4.6.0.0 (No changes needed).
+
+ -- Jörg Frings-Fürst <debian@jff.email>  Fri, 20 Aug 2021 08:15:05 +0200
+
 dmidecode (3.3-2pexip3) pexip-bullseye; urgency=medium
 
   * Bullseye rebuild for ARM64 inclusion
