@@ -85,7 +85,9 @@
 #define out_of_spec "<OUT OF SPEC>"
 static const char *bad_index = "<BAD INDEX>";
 
-#define SUPPORTED_SMBIOS_VER 0x030300
+enum cpuid_type cpuid_type = cpuid_none;
+
+#define SUPPORTED_SMBIOS_VER 0x030500
 
 #define FLAG_NO_FILE_OFFSET     (1 << 0)
 #define FLAG_STOP_AT_EOT        (1 << 1)
@@ -116,7 +118,7 @@ static void ascii_filter(char *bp, size_t len)
 	size_t i;
 
 	for (i = 0; i < len; i++)
-		if (bp[i] < 32 || bp[i] == 127)
+		if (bp[i] < 32 || bp[i] >= 127)
 			bp[i] = '.';
 }
 
@@ -201,12 +203,15 @@ static const char *dmi_smbios_structure_type(u8 code)
 		"Additional Information",
 		"Onboard Device",
 		"Management Controller Host Interface",
-		"TPM Device", /* 43 */
+		"TPM Device",
+		"Processor",
+		"Firmware",
+		"String Property" /* 46 */
 	};
 
 	if (code >= 128)
 		return "OEM-specific";
-	if (code <= 43)
+	if (code <= 46)
 		return type[code];
 	return out_of_spec;
 }
@@ -248,9 +253,9 @@ static void dmi_dump(const struct dmi_header *h)
 			{
 				int j, l = strlen(s) + 1;
 
-				off = 0;
 				for (row = 0; row < ((l - 1) >> 4) + 1; row++)
 				{
+					off = 0;
 					for (j = 0; j < 16 && j < l - (row << 4); j++)
 						off += sprintf(raw_data + off,
 						       j ? " %02X" : "%02X",
@@ -267,7 +272,7 @@ static void dmi_dump(const struct dmi_header *h)
 }
 
 /* shift is 0 if the value is in bytes, 1 if it is in kilobytes */
-static void dmi_print_memory_size(const char *attr, u64 code, int shift)
+void dmi_print_memory_size(const char *attr, u64 code, int shift)
 {
 	unsigned long capacity;
 	u16 split[7];
@@ -424,11 +429,13 @@ static void dmi_bios_characteristics_x2(u8 code)
 		"Function key-initiated network boot is supported",
 		"Targeted content distribution is supported",
 		"UEFI is supported",
-		"System is a virtual machine" /* 4 */
+		"System is a virtual machine",
+		"Manufacturing mode is supported",
+		"Manufacturing mode is enabled" /* 6 */
 	};
 	int i;
 
-	for (i = 0; i <= 4; i++)
+	for (i = 0; i <= 6; i++)
 		if (code & (1 << i))
 			pr_list_item("%s", characteristics[i]);
 }
@@ -1037,6 +1044,187 @@ static const char *dmi_processor_family(const struct dmi_header *h, u16 ver)
 	}
 }
 
+static enum cpuid_type dmi_get_cpuid_type(const struct dmi_header *h)
+{
+	const u8 *data = h->data;
+	const u8 *p = data + 0x08;
+	u16 type;
+
+	type = (data[0x06] == 0xFE && h->length >= 0x2A) ?
+		WORD(data + 0x28) : data[0x06];
+
+	if (type == 0x05) /* 80386 */
+	{
+		return cpuid_80386;
+	}
+	else if (type == 0x06) /* 80486 */
+	{
+		u16 dx = WORD(p);
+		/*
+		 * Not all 80486 CPU support the CPUID instruction, we have to find
+		 * whether the one we have here does or not. Note that this trick
+		 * works only because we know that 80486 must be little-endian.
+		 */
+		if ((dx & 0x0F00) == 0x0400
+		 && ((dx & 0x00F0) == 0x0040 || (dx & 0x00F0) >= 0x0070)
+		 && ((dx & 0x000F) >= 0x0003))
+			return cpuid_x86_intel;
+		else
+			return cpuid_80486;
+	}
+	else if ((type >= 0x100 && type <= 0x101) /* ARM */
+	      || (type >= 0x118 && type <= 0x119)) /* ARM */
+	{
+		/*
+		 * The field's format depends on the processor's support of
+		 * the SMCCC_ARCH_SOC_ID architectural call. Software can determine
+		 * the support for SoC ID by examining the Processor Characteristics field
+		 * for "Arm64 SoC ID" bit.
+		 */
+		if (h->length >= 0x28
+		 && (WORD(data + 0x26) & (1 << 9)))
+			return cpuid_arm_soc_id;
+		else
+			return cpuid_arm_legacy;
+	}
+	else if ((type >= 0x0B && type <= 0x15) /* Intel, Cyrix */
+	      || (type >= 0x28 && type <= 0x2F) /* Intel */
+	      || (type >= 0xA1 && type <= 0xB3) /* Intel */
+	      || type == 0xB5 /* Intel */
+	      || (type >= 0xB9 && type <= 0xC7) /* Intel */
+	      || (type >= 0xCD && type <= 0xCF) /* Intel */
+	      || (type >= 0xD2 && type <= 0xDB) /* VIA, Intel */
+	      || (type >= 0xDD && type <= 0xE0)) /* Intel */
+		return cpuid_x86_intel;
+	else if ((type >= 0x18 && type <= 0x1D) /* AMD */
+	      || type == 0x1F /* AMD */
+	      || (type >= 0x38 && type <= 0x3F) /* AMD */
+	      || (type >= 0x46 && type <= 0x4F) /* AMD */
+	      || (type >= 0x66 && type <= 0x6B) /* AMD */
+	      || (type >= 0x83 && type <= 0x8F) /* AMD */
+	      || (type >= 0xB6 && type <= 0xB7) /* AMD */
+	      || (type >= 0xE4 && type <= 0xEF)) /* AMD */
+		return cpuid_x86_amd;
+	else if (type == 0x01 || type == 0x02)
+	{
+		const char *version = dmi_string(h, data[0x10]);
+		/*
+		 * Some X86-class CPU have family "Other" or "Unknown". In this case,
+		 * we use the version string to determine if they are known to
+		 * support the CPUID instruction.
+		 */
+		if (strncmp(version, "Pentium III MMX", 15) == 0
+		 || strncmp(version, "Intel(R) Core(TM)2", 18) == 0
+		 || strncmp(version, "Intel(R) Pentium(R)", 19) == 0
+		 || strcmp(version, "Genuine Intel(R) CPU U1400") == 0)
+			return cpuid_x86_intel;
+		else if (strncmp(version, "AMD Athlon(TM)", 14) == 0
+		      || strncmp(version, "AMD Opteron(tm)", 15) == 0
+		      || strncmp(version, "Dual-Core AMD Opteron(tm)", 25) == 0)
+			return cpuid_x86_amd;
+	}
+
+	/* neither X86 nor ARM */
+	return cpuid_none;
+}
+
+void dmi_print_cpuid(void (*print_cb)(const char *name, const char *format, ...),
+		     const char *label, enum cpuid_type sig, const u8 *p)
+{
+	u32 eax, midr, jep106, soc_revision;
+	u16 dx;
+
+	switch (sig)
+	{
+		case cpuid_80386:
+			dx = WORD(p);
+			/*
+			 * 80386 have a different signature.
+			 */
+			print_cb(label,
+				 "Type %u, Family %u, Major Stepping %u, Minor Stepping %u",
+				 dx >> 12, (dx >> 8) & 0xF,
+				 (dx >> 4) & 0xF, dx & 0xF);
+			return;
+
+		case cpuid_80486:
+			dx = WORD(p);
+			print_cb(label,
+				 "Type %u, Family %u, Model %u, Stepping %u",
+				 (dx >> 12) & 0x3, (dx >> 8) & 0xF,
+				 (dx >> 4) & 0xF, dx & 0xF);
+			return;
+
+		case cpuid_arm_legacy: /* ARM before SOC ID */
+			midr = DWORD(p);
+			/*
+			 * The format of this field was not defined for ARM processors
+			 * before version 3.1.0 of the SMBIOS specification, so we
+			 * silently skip it if it reads all zeroes.
+			 */
+			if (midr == 0)
+				return;
+			print_cb(label,
+				 "Implementor 0x%02x, Variant 0x%x, Architecture %u, Part 0x%03x, Revision %u",
+				 midr >> 24, (midr >> 20) & 0xF,
+				 (midr >> 16) & 0xF, (midr >> 4) & 0xFFF, midr & 0xF);
+			return;
+
+		case cpuid_arm_soc_id: /* ARM with SOC ID */
+			/*
+			 * If Soc ID is supported, the first DWORD is the JEP-106 code;
+			 * the second DWORD is the SoC revision value.
+			 */
+			jep106 = DWORD(p);
+			soc_revision = DWORD(p + 4);
+			/*
+			 * According to SMC Calling Convention (SMCCC) v1.3 specification
+			 * (https://developer.arm.com/documentation/den0028/d/), the format
+			 * of the values returned by the SMCCC_ARCH_SOC_ID call is as follows:
+			 *
+			 * JEP-106 code for the SiP (SoC_ID_type == 0)
+			 *   Bit[31] must be zero
+			 *   Bits[30:24] JEP-106 bank index for the SiP
+			 *   Bits[23:16] JEP-106 identification code with parity bit for the SiP
+			 *   Bits[15:0] Implementation defined SoC ID
+			 *
+			 * SoC revision (SoC_ID_type == 1)
+			 *   Bit[31] must be zero
+			 *   Bits[30:0] SoC revision
+			 */
+			pr_attr("Signature",
+				"JEP-106 Bank 0x%02x Manufacturer 0x%02x, SoC ID 0x%04x, SoC Revision 0x%08x",
+				(jep106 >> 24) & 0x7F, (jep106 >> 16) & 0x7F, jep106 & 0xFFFF, soc_revision);
+			return;
+
+		case cpuid_x86_intel: /* Intel */
+			eax = DWORD(p);
+			/*
+			 * Extra flags are now returned in the ECX register when
+			 * one calls the CPUID instruction. Their meaning is
+			 * explained in table 3-5, but DMI doesn't support this
+			 * yet.
+			 */
+			print_cb(label,
+				 "Type %u, Family %u, Model %u, Stepping %u",
+				 (eax >> 12) & 0x3,
+				 ((eax >> 20) & 0xFF) + ((eax >> 8) & 0x0F),
+				 ((eax >> 12) & 0xF0) + ((eax >> 4) & 0x0F),
+				 eax & 0xF);
+			break;
+
+		case cpuid_x86_amd: /* AMD, publication #25481 revision 2.28 */
+			eax = DWORD(p);
+			print_cb(label, "Family %u, Model %u, Stepping %u",
+				 ((eax >> 8) & 0xF) + (((eax >> 8) & 0xF) == 0xF ? (eax >> 20) & 0xFF : 0),
+				 ((eax >> 4) & 0xF) | (((eax >> 8) & 0xF) == 0xF ? (eax >> 12) & 0xF0 : 0),
+				 eax & 0xF);
+			break;
+		default:
+			return;
+	}
+}
+
 static void dmi_processor_id(const struct dmi_header *h)
 {
 	/* Intel AP-485 revision 36, table 2-4 */
@@ -1076,135 +1264,21 @@ static void dmi_processor_id(const struct dmi_header *h)
 	};
 	const u8 *data = h->data;
 	const u8 *p = data + 0x08;
-	u32 eax, edx;
-	int sig = 0;
-	u16 type;
-
-	type = (data[0x06] == 0xFE && h->length >= 0x2A) ?
-		WORD(data + 0x28) : data[0x06];
+	enum cpuid_type sig = dmi_get_cpuid_type(h);
+	u32 edx;
 
 	/*
 	 * This might help learn about new processors supporting the
 	 * CPUID instruction or another form of identification.
 	 */
-	pr_attr("ID", "%02X %02X %02X %02X %02X %02X %02X %02X",
-		p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7]);
+	if (!(opt.flags & FLAG_QUIET))
+		pr_attr("ID", "%02X %02X %02X %02X %02X %02X %02X %02X",
+			p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7]);
 
-	if (type == 0x05) /* 80386 */
-	{
-		u16 dx = WORD(p);
-		/*
-		 * 80386 have a different signature.
-		 */
-		pr_attr("Signature",
-			"Type %u, Family %u, Major Stepping %u, Minor Stepping %u",
-			dx >> 12, (dx >> 8) & 0xF,
-			(dx >> 4) & 0xF, dx & 0xF);
-		return;
-	}
-	if (type == 0x06) /* 80486 */
-	{
-		u16 dx = WORD(p);
-		/*
-		 * Not all 80486 CPU support the CPUID instruction, we have to find
-		 * wether the one we have here does or not. Note that this trick
-		 * works only because we know that 80486 must be little-endian.
-		 */
-		if ((dx & 0x0F00) == 0x0400
-		 && ((dx & 0x00F0) == 0x0040 || (dx & 0x00F0) >= 0x0070)
-		 && ((dx & 0x000F) >= 0x0003))
-			sig = 1;
-		else
-		{
-			pr_attr("Signature",
-				"Type %u, Family %u, Model %u, Stepping %u",
-				(dx >> 12) & 0x3, (dx >> 8) & 0xF,
-				(dx >> 4) & 0xF, dx & 0xF);
-			return;
-		}
-	}
-	else if ((type >= 0x100 && type <= 0x101) /* ARM */
-	      || (type >= 0x118 && type <= 0x119)) /* ARM */
-	{
-		u32 midr = DWORD(p);
-		/*
-		 * The format of this field was not defined for ARM processors
-		 * before version 3.1.0 of the SMBIOS specification, so we
-		 * silently skip it if it reads all zeroes.
-		 */
-		if (midr == 0)
-			return;
-		pr_attr("Signature",
-			"Implementor 0x%02x, Variant 0x%x, Architecture %u, Part 0x%03x, Revision %u",
-			midr >> 24, (midr >> 20) & 0xF,
-			(midr >> 16) & 0xF, (midr >> 4) & 0xFFF, midr & 0xF);
-		return;
-	}
-	else if ((type >= 0x0B && type <= 0x15) /* Intel, Cyrix */
-	      || (type >= 0x28 && type <= 0x2F) /* Intel */
-	      || (type >= 0xA1 && type <= 0xB3) /* Intel */
-	      || type == 0xB5 /* Intel */
-	      || (type >= 0xB9 && type <= 0xC7) /* Intel */
-	      || (type >= 0xCD && type <= 0xCF) /* Intel */
-	      || (type >= 0xD2 && type <= 0xDB) /* VIA, Intel */
-	      || (type >= 0xDD && type <= 0xE0)) /* Intel */
-		sig = 1;
-	else if ((type >= 0x18 && type <= 0x1D) /* AMD */
-	      || type == 0x1F /* AMD */
-	      || (type >= 0x38 && type <= 0x3F) /* AMD */
-	      || (type >= 0x46 && type <= 0x4F) /* AMD */
-	      || (type >= 0x66 && type <= 0x6B) /* AMD */
-	      || (type >= 0x83 && type <= 0x8F) /* AMD */
-	      || (type >= 0xB6 && type <= 0xB7) /* AMD */
-	      || (type >= 0xE4 && type <= 0xEF)) /* AMD */
-		sig = 2;
-	else if (type == 0x01 || type == 0x02)
-	{
-		const char *version = dmi_string(h, data[0x10]);
-		/*
-		 * Some X86-class CPU have family "Other" or "Unknown". In this case,
-		 * we use the version string to determine if they are known to
-		 * support the CPUID instruction.
-		 */
-		if (strncmp(version, "Pentium III MMX", 15) == 0
-		 || strncmp(version, "Intel(R) Core(TM)2", 18) == 0
-		 || strncmp(version, "Intel(R) Pentium(R)", 19) == 0
-		 || strcmp(version, "Genuine Intel(R) CPU U1400") == 0)
-			sig = 1;
-		else if (strncmp(version, "AMD Athlon(TM)", 14) == 0
-		      || strncmp(version, "AMD Opteron(tm)", 15) == 0
-		      || strncmp(version, "Dual-Core AMD Opteron(tm)", 25) == 0)
-			sig = 2;
-		else
-			return;
-	}
-	else /* neither X86 nor ARM */
-		return;
+	dmi_print_cpuid(pr_attr, "Signature", sig, p);
 
-	/*
-	 * Extra flags are now returned in the ECX register when one calls
-	 * the CPUID instruction. Their meaning is explained in table 3-5, but
-	 * DMI doesn't support this yet.
-	 */
-	eax = DWORD(p);
-	edx = DWORD(p + 4);
-	switch (sig)
-	{
-		case 1: /* Intel */
-			pr_attr("Signature",
-				"Type %u, Family %u, Model %u, Stepping %u",
-				(eax >> 12) & 0x3,
-				((eax >> 20) & 0xFF) + ((eax >> 8) & 0x0F),
-				((eax >> 12) & 0xF0) + ((eax >> 4) & 0x0F),
-				eax & 0xF);
-			break;
-		case 2: /* AMD, publication #25481 revision 2.28 */
-			pr_attr("Signature", "Family %u, Model %u, Stepping %u",
-				((eax >> 8) & 0xF) + (((eax >> 8) & 0xF) == 0xF ? (eax >> 20) & 0xFF : 0),
-				((eax >> 4) & 0xF) | (((eax >> 8) & 0xF) == 0xF ? (eax >> 12) & 0xF0 : 0),
-				eax & 0xF);
-			break;
-	}
+	if (sig != cpuid_x86_intel && sig != cpuid_x86_amd)
+		return;
 
 	edx = DWORD(p + 4);
 	if ((edx & 0xBFEFFBFF) == 0)
@@ -1355,10 +1429,13 @@ static const char *dmi_processor_upgrade(u8 code)
 		"Socket LGA2066",
 		"Socket BGA1392",
 		"Socket BGA1510",
-		"Socket BGA1528" /* 0x3C */
+		"Socket BGA1528",
+		"Socket LGA4189",
+		"Socket LGA1200",
+		"Socket LGA4677" /* 0x3F */
 	};
 
-	if (code >= 0x01 && code <= 0x3C)
+	if (code >= 0x01 && code <= 0x3F)
 		return upgrade[code - 0x01];
 	return out_of_spec;
 }
@@ -1386,7 +1463,9 @@ static void dmi_processor_characteristics(const char *attr, u16 code)
 		"Hardware Thread",
 		"Execute Protection",
 		"Enhanced Virtualization",
-		"Power/Performance Control" /* 7 */
+		"Power/Performance Control",
+		"128-bit Capable",
+		"Arm64 SoC ID" /* 9 */
 	};
 
 	if ((code & 0x00FC) == 0)
@@ -1396,7 +1475,7 @@ static void dmi_processor_characteristics(const char *attr, u16 code)
 		int i;
 
 		pr_list_start(attr, NULL);
-		for (i = 2; i <= 7; i++)
+		for (i = 2; i <= 9; i++)
 			if (code & (1 << i))
 				pr_list_item("%s", characteristics[i - 2]);
 		pr_list_end();
@@ -1931,11 +2010,16 @@ static const char *dmi_slot_type(u8 code)
 		"MXM Type IV",
 		"MXM 3.0 Type A",
 		"MXM 3.0 Type B",
-		"PCI Express 2 SFF-8639",
-		"PCI Express 3 SFF-8639",
+		"PCI Express 2 SFF-8639 (U.2)",
+		"PCI Express 3 SFF-8639 (U.2)",
 		"PCI Express Mini 52-pin with bottom-side keep-outs",
 		"PCI Express Mini 52-pin without bottom-side keep-outs",
-		"PCI Express Mini 76-pin" /* 0x23 */
+		"PCI Express Mini 76-pin",
+		"PCI Express 4 SFF-8639 (U.2)",
+		"PCI Express 5 SFF-8639 (U.2)",
+		"OCP NIC 3.0 Small Form Factor (SFF)",
+		"OCP NIC 3.0 Large Form Factor (LFF)",
+		"OCP NIC Prior to 3.0" /* 0x28 */
 	};
 	static const char *type_0x30[] = {
 		"CXL FLexbus 1.0" /* 0x30 */
@@ -1970,45 +2054,72 @@ static const char *dmi_slot_type(u8 code)
 		"PCI Express 4 x2",
 		"PCI Express 4 x4",
 		"PCI Express 4 x8",
-		"PCI Express 4 x16" /* 0xBD */
+		"PCI Express 4 x16",
+		"PCI Express 5",
+		"PCI Express 5 x1",
+		"PCI Express 5 x2",
+		"PCI Express 5 x4",
+		"PCI Express 5 x8",
+		"PCI Express 5 x16",
+		"PCI Express 6+",
+		"EDSFF E1",
+		"EDSFF E3" /* 0xC6 */
 	};
 	/*
 	 * Note to developers: when adding entries to these lists, check if
 	 * function dmi_slot_id below needs updating too.
 	 */
 
-	if (code >= 0x01 && code <= 0x23)
+	if (code >= 0x01 && code <= 0x28)
 		return type[code - 0x01];
 	if (code == 0x30)
 		return type_0x30[code - 0x30];
-	if (code >= 0xA0 && code <= 0xBD)
+	if (code >= 0xA0 && code <= 0xC6)
 		return type_0xA0[code - 0xA0];
 	return out_of_spec;
 }
 
-static const char *dmi_slot_bus_width(u8 code)
+/* If hide_unknown is set, return NULL instead of "Other" or "Unknown" */
+static const char *dmi_slot_bus_width(u8 code, int hide_unknown)
 {
 	/* 7.10.2 */
 	static const char *width[] = {
-		"", /* 0x01, "Other" */
-		"", /* "Unknown" */
-		"8-bit ",
-		"16-bit ",
-		"32-bit ",
-		"64-bit ",
-		"128-bit ",
-		"x1 ",
-		"x2 ",
-		"x4 ",
-		"x8 ",
-		"x12 ",
-		"x16 ",
-		"x32 " /* 0x0E */
+		"Other", /* 0x01 */
+		"Unknown",
+		"8-bit",
+		"16-bit",
+		"32-bit",
+		"64-bit",
+		"128-bit",
+		"x1",
+		"x2",
+		"x4",
+		"x8",
+		"x12",
+		"x16",
+		"x32" /* 0x0E */
 	};
 
 	if (code >= 0x01 && code <= 0x0E)
+	{
+		if (code <= 0x02 && hide_unknown)
+			return NULL;
 		return width[code - 0x01];
+	}
 	return out_of_spec;
+}
+
+static void dmi_slot_type_with_width(u8 type, u8 width)
+{
+	const char *type_str, *width_str;
+
+	type_str = dmi_slot_type(type);
+	width_str = dmi_slot_bus_width(width, 1);
+
+	if (width_str)
+		pr_attr("Type", "%s %s", width_str, type_str);
+	else
+		pr_attr("Type", "%s", type_str);
 }
 
 static const char *dmi_slot_current_usage(u8 code)
@@ -2091,6 +2202,13 @@ static void dmi_slot_id(u8 code1, u8 code2, u8 type)
 		case 0xBB: /* PCI Express 4 */
 		case 0xBC: /* PCI Express 4 */
 		case 0xBD: /* PCI Express 4 */
+		case 0xBE: /* PCI Express 5 */
+		case 0xBF: /* PCI Express 5 */
+		case 0xC0: /* PCI Express 5 */
+		case 0xC1: /* PCI Express 5 */
+		case 0xC2: /* PCI Express 5 */
+		case 0xC3: /* PCI Express 5 */
+		case 0xC4: /* PCI Express 6+ */
 			pr_attr("ID", "%u", code1);
 			break;
 		case 0x07: /* PCMCIA */
@@ -2116,7 +2234,10 @@ static void dmi_slot_characteristics(const char *attr, u8 code1, u8 code2)
 		"PME signal is supported", /* 0 */
 		"Hot-plug devices are supported",
 		"SMBus signal is supported",
-		"PCIe slot bifurcation is supported" /* 3 */
+		"PCIe slot bifurcation is supported",
+		"Async/surprise removal is supported",
+		"Flexbus slot, CXL 1.0 capable",
+		"Flexbus slot, CXL 2.0 capable" /* 6 */
 	};
 
 	if (code1 & (1 << 0))
@@ -2131,7 +2252,7 @@ static void dmi_slot_characteristics(const char *attr, u8 code1, u8 code2)
 		for (i = 1; i <= 7; i++)
 			if (code1 & (1 << i))
 				pr_list_item("%s", characteristics1[i - 1]);
-		for (i = 0; i <= 3; i++)
+		for (i = 0; i <= 6; i++)
 			if (code2 & (1 << i))
 				pr_list_item("%s", characteristics2[i]);
 		pr_list_end();
@@ -2153,11 +2274,86 @@ static void dmi_slot_peers(u8 n, const u8 *data)
 
 	for (i = 1; i <= n; i++, data += 5)
 	{
-		sprintf(attr, "Peer Device %hu", i);
+		sprintf(attr, "Peer Device %hhu", (u8)i);
 		pr_attr(attr, "%04x:%02x:%02x.%x (Width %u)",
 			WORD(data), data[2], data[3] >> 3, data[3] & 0x07,
 			data[4]);
 	}
+}
+
+static void dmi_slot_information(u8 type, u8 code)
+{
+	switch (type)
+	{
+		case 0x1F: /* PCI Express 2 */
+		case 0x20: /* PCI Express 3 */
+		case 0x21: /* PCI Express Mini */
+		case 0x22: /* PCI Express Mini */
+		case 0x23: /* PCI Express Mini */
+		case 0xA5: /* PCI Express */
+		case 0xA6: /* PCI Express */
+		case 0xA7: /* PCI Express */
+		case 0xA8: /* PCI Express */
+		case 0xA9: /* PCI Express */
+		case 0xAA: /* PCI Express */
+		case 0xAB: /* PCI Express 2 */
+		case 0xAC: /* PCI Express 2 */
+		case 0xAD: /* PCI Express 2 */
+		case 0xAE: /* PCI Express 2 */
+		case 0xAF: /* PCI Express 2 */
+		case 0xB0: /* PCI Express 2 */
+		case 0xB1: /* PCI Express 3 */
+		case 0xB2: /* PCI Express 3 */
+		case 0xB3: /* PCI Express 3 */
+		case 0xB4: /* PCI Express 3 */
+		case 0xB5: /* PCI Express 3 */
+		case 0xB6: /* PCI Express 3 */
+		case 0xB8: /* PCI Express 4 */
+		case 0xB9: /* PCI Express 4 */
+		case 0xBA: /* PCI Express 4 */
+		case 0xBB: /* PCI Express 4 */
+		case 0xBC: /* PCI Express 4 */
+		case 0xBD: /* PCI Express 4 */
+		case 0xBE: /* PCI Express 5 */
+		case 0xBF: /* PCI Express 5 */
+		case 0xC0: /* PCI Express 5 */
+		case 0xC1: /* PCI Express 5 */
+		case 0xC2: /* PCI Express 5 */
+		case 0xC3: /* PCI Express 5 */
+		case 0xC4: /* PCI Express 6+ */
+			if (code)
+				pr_attr("PCI Express Generation", "%u", code);
+			break;
+	}
+}
+
+static void dmi_slot_physical_width(u8 code)
+{
+	if (code)
+		pr_attr("Slot Physical Width", "%s",
+			dmi_slot_bus_width(code, 0));
+}
+
+static void dmi_slot_pitch(u16 code)
+{
+	if (code)
+		pr_attr("Pitch", "%u.%02u mm", code / 100, code % 100);
+}
+
+static const char *dmi_slot_height(u8 code)
+{
+	/* 7.10.3 */
+	static const char *height[] = {
+		"Not applicable", /* 0x00 */
+		"Other",
+		"Unknown",
+		"Full height",
+		"Low-profile" /* 0x04 */
+	};
+
+	if (code <= 0x04)
+		return height[code];
+	return out_of_spec;
 }
 
 /*
@@ -2177,10 +2373,16 @@ static const char *dmi_on_board_devices_type(u8 code)
 		"Sound",
 		"PATA Controller",
 		"SATA Controller",
-		"SAS Controller" /* 0x0A */
+		"SAS Controller",
+		"Wireless LAN",
+		"Bluetooth",
+		"WWAN",
+		"eMMC",
+		"NVMe Controller",
+		"UFS Controller" /* 0x10 */
 	};
 
-	if (code >= 0x01 && code <= 0x0A)
+	if (code >= 0x01 && code <= 0x10)
 		return type[code - 0x01];
 	return out_of_spec;
 }
@@ -2219,7 +2421,7 @@ static void dmi_oem_strings(const struct dmi_header *h)
 
 	for (i = 1; i <= count; i++)
 	{
-		sprintf(attr, "String %hu", i);
+		sprintf(attr, "String %hhu", (u8)i);
 		pr_attr(attr, "%s",dmi_string(h, i));
 	}
 }
@@ -2237,7 +2439,7 @@ static void dmi_system_configuration_options(const struct dmi_header *h)
 
 	for (i = 1; i <= count; i++)
 	{
-		sprintf(attr, "Option %hu", i);
+		sprintf(attr, "Option %hhu", (u8)i);
 		pr_attr(attr, "%s",dmi_string(h, i));
 	}
 }
@@ -2421,10 +2623,10 @@ static void dmi_event_log_descriptors(u8 count, u8 len, const u8 *p)
 	{
 		if (len >= 0x02)
 		{
-			sprintf(attr, "Descriptor %hu", i + 1);
+			sprintf(attr, "Descriptor %d", i + 1);
 			pr_attr(attr, "%s",
 				dmi_event_log_descriptor_type(p[i * len]));
-			sprintf(attr, "Data Format %hu", i + 1);
+			sprintf(attr, "Data Format %d", i + 1);
 			pr_attr(attr, "%s",
 				dmi_event_log_descriptor_format(p[i * len + 1]));
 		}
@@ -2639,10 +2841,12 @@ static const char *dmi_memory_device_type(u8 code)
 		"LPDDR4",
 		"Logical non-volatile device",
 		"HBM",
-		"HBM2" /* 0x21 */
+		"HBM2",
+		"DDR5",
+		"LPDDR5" /* 0x23 */
 	};
 
-	if (code >= 0x01 && code <= 0x21)
+	if (code >= 0x01 && code <= 0x23)
 		return type[code - 0x01];
 	return out_of_spec;
 }
@@ -2684,12 +2888,22 @@ static void dmi_memory_device_type_detail(u16 code)
 	}
 }
 
-static void dmi_memory_device_speed(const char *attr, u16 code)
+static void dmi_memory_device_speed(const char *attr, u16 code1, u32 code2)
 {
-	if (code == 0)
-		pr_attr(attr, "Unknown");
+	if (code1 == 0xFFFF)
+	{
+		if (code2 == 0)
+			pr_attr(attr, "Unknown");
+		else
+			pr_attr(attr, "%lu MT/s", code2);
+	}
 	else
-		pr_attr(attr, "%u MT/s", code);
+	{
+		if (code1 == 0)
+			pr_attr(attr, "Unknown");
+		else
+			pr_attr(attr, "%u MT/s", code1);
+	}
 }
 
 static void dmi_memory_technology(u8 code)
@@ -2948,12 +3162,14 @@ static const char *dmi_pointing_device_interface(u8 code)
 	static const char *interface_0xA0[] = {
 		"Bus Mouse DB-9", /* 0xA0 */
 		"Bus Mouse Micro DIN",
-		"USB" /* 0xA2 */
+		"USB",
+		"I2C",
+		"SPI" /* 0xA4 */
 	};
 
 	if (code >= 0x01 && code <= 0x08)
 		return interface[code - 0x01];
-	if (code >= 0xA0 && code <= 0xA2)
+	if (code >= 0xA0 && code <= 0xA4)
 		return interface_0xA0[code - 0xA0];
 	return out_of_spec;
 }
@@ -3390,11 +3606,11 @@ static void dmi_memory_channel_devices(u8 count, const u8 *p)
 
 	for (i = 1; i <= count; i++)
 	{
-		sprintf(attr, "Device %hu Load", i);
+		sprintf(attr, "Device %hhu Load", (u8)i);
 		pr_attr(attr, "%u", p[3 * i]);
 		if (!(opt.flags & FLAG_QUIET))
 		{
-			sprintf(attr, "Device %hu Handle", i);
+			sprintf(attr, "Device %hhu Handle", (u8)i);
 			pr_attr(attr, "0x%04X", WORD(p + 3 * i + 1));
 		}
 	}
@@ -3707,16 +3923,16 @@ static void dmi_parse_protocol_record(u8 *rec)
 	 * convenience.  It could get passed from the SMBIOS
 	 * header, but that's a lot of passing of pointers just
 	 * to get that info, and the only thing it is used for is
-	 * to determine the endianess of the field.  Since we only
+	 * to determine the endianness of the field.  Since we only
 	 * do this parsing on versions of SMBIOS after 3.1.1, and the
-	 * endianess of the field is always little after version 2.6.0
+	 * endianness of the field is always little after version 2.6.0
 	 * we can just pick a sufficiently recent version here.
 	 */
 	dmi_system_uuid(pr_subattr, "Service UUID", &rdata[0], 0x311);
 
 	/*
 	 * DSP0270: 8.6: Redfish Over IP Host IP Assignment Type
-	 * Note, using decimal indicies here, as the DSP0270
+	 * Note, using decimal indices here, as the DSP0270
 	 * uses decimal, so as to make it more comparable
 	 */
 	assign_val = rdata[16];
@@ -4011,6 +4227,53 @@ static void dmi_tpm_characteristics(u64 code)
 }
 
 /*
+ * 7.46 Firmware Inventory Information (Type 45)
+ */
+
+static void dmi_firmware_characteristics(u16 code)
+{
+	/* 7.46.3 */
+	static const char *characteristics[] = {
+		"Updatable", /* 0 */
+		"Write-Protect" /* 1 */
+	};
+	int i;
+
+	for (i = 0; i <= 1; i++)
+		pr_list_item("%s: %s", characteristics[i],
+			     (code & (1 << i)) ? "Yes" : "No");
+}
+
+static const char *dmi_firmware_state(u8 code)
+{
+	/* 7.46.4 */
+	static const char *state[] = {
+		"Other", /* 0x01 */
+		"Unknown",
+		"Disabled",
+		"Enabled",
+		"Absent",
+		"Stand-by Offline",
+		"Stand-by Spare",
+		"Unavailable Offline" /* 0x08 */
+	};
+
+	if (code >= 0x01 && code <= 0x08)
+		return state[code - 0x01];
+	return out_of_spec;
+}
+
+static void dmi_firmware_components(u8 count, const u8 *p)
+{
+	int i;
+
+	pr_list_start("Associated Components", "%u", count);
+	for (i = 0; i < count; i++)
+		pr_list_item("0x%04X", WORD(p + sizeof(u16) * i));
+	pr_list_end();
+}
+
+/*
  * Main
  */
 
@@ -4033,9 +4296,9 @@ static void dmi_decode(const struct dmi_header *h, u16 ver)
 			pr_attr("Release Date", "%s",
 				dmi_string(h, data[0x08]));
 			/*
-			 * On IA-64, the BIOS base address will read 0 because
-			 * there is no BIOS. Skip the base address and the
-			 * runtime size in this case.
+			 * On IA-64 and UEFI-based systems, the BIOS base
+			 * address will read 0 because there is no BIOS. Skip
+			 * the base address and the runtime size in this case.
 			 */
 			if (WORD(data + 0x06) != 0)
 			{
@@ -4302,9 +4565,7 @@ static void dmi_decode(const struct dmi_header *h, u16 ver)
 			if (h->length < 0x0C) break;
 			pr_attr("Designation", "%s",
 				dmi_string(h, data[0x04]));
-			pr_attr("Type", "%s%s",
-				dmi_slot_bus_width(data[0x06]),
-				dmi_slot_type(data[0x05]));
+			dmi_slot_type_with_width(data[0x05], data[0x06]);
 			pr_attr("Current Usage", "%s",
 				dmi_slot_current_usage(data[0x07]));
 			pr_attr("Length", "%s",
@@ -4319,8 +4580,15 @@ static void dmi_decode(const struct dmi_header *h, u16 ver)
 			if (h->length < 0x13) break;
 			pr_attr("Data Bus Width", "%u", data[0x11]);
 			pr_attr("Peer Devices", "%u", data[0x12]);
-			if (h->length - 0x13 >= data[0x12] * 5)
-				dmi_slot_peers(data[0x12], data + 0x13);
+			if (h->length < 0x13 + data[0x12] * 5) break;
+			dmi_slot_peers(data[0x12], data + 0x13);
+			if (h->length < 0x17 + data[0x12] * 5) break;
+			dmi_slot_information(data[0x05], data[0x13 + data[0x12] * 5]);
+			dmi_slot_physical_width(data[0x14 + data[0x12] * 5]);
+			dmi_slot_pitch(WORD(data + 0x15 + data[0x12] * 5));
+			if (h->length < 0x18 + data[0x12] * 5) break;
+			pr_attr("Height", "%s",
+				dmi_slot_height(data[0x17 + data[0x12] * 5]));
 			break;
 
 		case 10: /* 7.11 On Board Devices Information */
@@ -4451,7 +4719,12 @@ static void dmi_decode(const struct dmi_header *h, u16 ver)
 				dmi_memory_device_type(data[0x12]));
 			dmi_memory_device_type_detail(WORD(data + 0x13));
 			if (h->length < 0x17) break;
-			dmi_memory_device_speed("Speed", WORD(data + 0x15));
+			/* If no module is present, the remaining fields are irrelevant */
+			if (WORD(data + 0x0C) == 0)
+				break;
+			dmi_memory_device_speed("Speed", WORD(data + 0x15),
+						h->length >= 0x5C ?
+						DWORD(data + 0x54) : 0);
 			if (h->length < 0x1B) break;
 			pr_attr("Manufacturer", "%s",
 				dmi_string(h, data[0x17]));
@@ -4468,7 +4741,9 @@ static void dmi_decode(const struct dmi_header *h, u16 ver)
 				pr_attr("Rank", "%u", data[0x1B] & 0x0F);
 			if (h->length < 0x22) break;
 			dmi_memory_device_speed("Configured Memory Speed",
-						WORD(data + 0x20));
+						WORD(data + 0x20),
+						h->length >= 0x5C ?
+						DWORD(data + 0x58) : 0);
 			if (h->length < 0x28) break;
 			dmi_memory_voltage_value("Minimum Voltage",
 						 WORD(data + 0x22));
@@ -5051,11 +5326,33 @@ static void dmi_decode(const struct dmi_header *h, u16 ver)
 				DWORD(data + 0x1B));
 			break;
 
-		case 126: /* 7.44 Inactive */
+		case 45: /* 7.46 Firmware Inventory Information */
+			pr_handle_name("Firmware Inventory Information");
+			if (h->length < 0x18) break;
+			pr_attr("Firmware Component Name", "%s",
+				dmi_string(h, data[0x04]));
+			pr_attr("Firmware Version", "%s",
+				dmi_string(h, data[0x05]));
+			pr_attr("Firmware ID", "%s", dmi_string(h, data[0x07]));
+			pr_attr("Release Date", "%s", dmi_string(h, data[0x09]));
+			pr_attr("Manufacturer", "%s", dmi_string(h, data[0x0A]));
+			pr_attr("Lowest Supported Firmware Version", "%s",
+				dmi_string(h, data[0x0B]));
+			dmi_memory_size("Image Size", QWORD(data + 0x0C));
+			pr_list_start("Characteristics", NULL);
+			dmi_firmware_characteristics(WORD(data + 0x14));
+			pr_list_end();
+			pr_attr("State", "%s", dmi_firmware_state(data[0x16]));
+			if (h->length < 0x18 + data[0x17] * 2) break;
+			if (!(opt.flags & FLAG_QUIET))
+				dmi_firmware_components(data[0x17], data + 0x18);
+			break;
+
+		case 126:
 			pr_handle_name("Inactive");
 			break;
 
-		case 127: /* 7.45 End Of Table */
+		case 127:
 			pr_handle_name("End Of Table");
 			break;
 
@@ -5142,6 +5439,51 @@ static void dmi_table_decode(u8 *buf, u32 len, u16 num, u16 ver, u32 flags)
 	u8 *data;
 	int i = 0;
 
+	/* First pass: Save specific values needed to decode OEM types */
+	data = buf;
+	while ((i < num || !num)
+	    && data + 4 <= buf + len) /* 4 is the length of an SMBIOS structure header */
+	{
+		u8 *next;
+		struct dmi_header h;
+
+		to_dmi_header(&h, data);
+
+		/*
+		 * If a short entry is found (less than 4 bytes), not only it
+		 * is invalid, but we cannot reliably locate the next entry.
+		 * Also stop at end-of-table marker if so instructed.
+		 */
+		if (h.length < 4 ||
+		    (h.type == 127 &&
+		     (opt.flags & (FLAG_QUIET | FLAG_STOP_AT_EOT))))
+			break;
+		i++;
+
+		/* Look for the next handle */
+		next = data + h.length;
+		while ((unsigned long)(next - buf + 1) < len
+		    && (next[0] != 0 || next[1] != 0))
+			next++;
+		next += 2;
+
+		/* Make sure the whole structure fits in the table */
+		if ((unsigned long)(next - buf) > len)
+			break;
+
+		/* Assign vendor for vendor-specific decodes later */
+		if (h.type == 1 && h.length >= 6)
+			dmi_set_vendor(_dmi_string(&h, data[0x04], 0),
+				       _dmi_string(&h, data[0x05], 0));
+
+		/* Remember CPUID type for HPE type 199 */
+		if (h.type == 4 && h.length >= 0x1A && cpuid_type == cpuid_none)
+			cpuid_type = dmi_get_cpuid_type(&h);
+		data = next;
+	}
+
+	/* Second pass: Actually decode the data */
+	i = 0;
 	data = buf;
 	while ((i < num || !num)
 	    && data + 4 <= buf + len) /* 4 is the length of an SMBIOS structure header */
@@ -5200,10 +5542,6 @@ static void dmi_table_decode(u8 *buf, u32 len, u16 num, u16 ver, u32 flags)
 			data = next;
 			break;
 		}
-
-		/* assign vendor for vendor-specific decodes later */
-		if (h.type == 1 && h.length >= 5)
-			dmi_set_vendor(dmi_string(&h, data[0x04]));
 
 		/* Fixup a common mistake */
 		if (h.type == 34)
