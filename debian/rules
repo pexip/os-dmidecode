@@ -14,7 +14,7 @@ endif
 	dh ${@}
 
 override_dh_auto_build:
-	dh_auto_build -- CC=$(CC) CFLAGS="$(CFLAGS) $(CPPFLAGS) -Os -ansi" LDFLAGS="$(LDFLAGS)"
+	dh_auto_build -- CC=$(CC) CFLAGS="$(CFLAGS) $(CPPFLAGS) -Os" LDFLAGS="$(LDFLAGS)"
 
 override_dh_auto_install:
 	dh_auto_install -- prefix=/usr

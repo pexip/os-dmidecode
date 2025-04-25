@@ -4,16 +4,16 @@ Priority: optional
 Maintainer: Pexip AS <packaging@pexip.com>
 XSBC-Pexip-Original-Maintainer: Jörg Frings-Fürst <debian@jff.email>
 Build-Depends: debhelper-compat (= 13)
-Standards-Version: 4.6.1.0
+Standards-Version: 4.7.0
 Rules-Requires-Root: no
-Vcs-Git: git://jff.email/opt/git/dmidecode.git
-Vcs-Browser: https://jff.email/cgit/dmidecode.git/
+Vcs-Git: https://git.jff.email/cgit/dmidecode.git
+Vcs-Browser: https://git.jff.email/cgit/dmidecode.git/
 Homepage: https://nongnu.org/dmidecode/
 XS-Pexip-Upstream: http://deb.debian.org/debian/ trixie
 
 Package: dmidecode
 Priority: important
-Architecture: any-amd64 arm64 armhf ia64 any-i386 riscv64
+Architecture: any-amd64 arm64 armhf ia64 any-i386 riscv64 loong64
 Multi-Arch: foreign
 Depends: ${misc:Depends}, ${shlibs:Depends}
 Description: SMBIOS/DMI table decoder
@@ -32,7 +32,7 @@ Description: SMBIOS/DMI table decoder
 
 Package: dmidecode-udeb
 Section: debian-installer
-Architecture: any-amd64 arm64 armhf ia64 any-i386
+Architecture: any-amd64 arm64 armhf ia64 any-i386 riscv64 loong64
 Package-Type: udeb
 Depends: ${misc:Depends}, ${shlibs:Depends}
 Description: SMBIOS/DMI table decoder (udeb)

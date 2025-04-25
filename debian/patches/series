@@ -11,3 +11,6 @@
 #0130-use_DWORD_for_table_max_size.patch
 #0135-hide_fixup_msg.patch
 #0140-Fix_scan_entry_point.patch
+#0155-use_read_file.patch
+#0160-HPE_OEM_Firmware_change.patch
+0600-Fix-groff-error.patch
