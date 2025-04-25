@@ -9,7 +9,7 @@ Rules-Requires-Root: no
 Vcs-Git: git://jff.email/opt/git/dmidecode.git
 Vcs-Browser: https://jff.email/cgit/dmidecode.git/
 Homepage: https://nongnu.org/dmidecode/
-XS-Pexip-Upstream: http://deb.debian.org/debian/ bookworm
+XS-Pexip-Upstream: http://deb.debian.org/debian/ trixie
 
 Package: dmidecode
 Priority: important
